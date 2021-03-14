@@ -1,7 +1,7 @@
 # Pseudo_POVM
 Quantum computation in terms of pseudo POVMs
 
-pseudo_povm_circuits.py has description of two classee: QubitCircuit and PseudoPovm.
+pseudo_povm_circuits.py has description of two classes: QubitCircuit and PseudoPovm.
 
 It also has some functions which are used in methods of these classes
 
