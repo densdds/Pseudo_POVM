@@ -5,6 +5,7 @@ of these classes
 """
 
 import tensorflow as tf
+import numpy as np
 
 #Initialize pauli matrices
 sigma_0 = tf.eye(2,dtype=tf.complex128)
@@ -155,6 +156,31 @@ class QubitCircuit:
     res = tf.einsum('ab,bc,c->a',measurement,circuit,init_state)
     return res
 
+  def run_approx_circuit(self, povm):
+    """Runs stochastic approximation of
+    quantum circuit in given POVM or pseudo POVM
+
+    Arguments
+    ---------
+    povm : PseudoPovm
+
+    Returns [2, ] tensor of float64
+    """
+
+    gates = []
+    gates_num = len(self.list_of_gates)
+    for i in range(gates_num):
+      gates.append(pseudostoch_approx(unitary_to_povm(self.list_of_gates[i],
+                                   povm.get_pseudo_povm_in_comp_basis())))
+    circuit = tf.eye(4,dtype=tf.float64)
+    for i in range(gates_num):
+      circuit = gates[i] @ circuit
+    init_state = approx_vector(povm.init_state())
+    measurement = pseudostoch_approx(povm.measurement())
+    res = tf.einsum('ab,bc,c->a',measurement,circuit,init_state)
+    return res
+
+
   def total_negativity(self, povm):
       """Computes total negativity of circuit including negativity of initial
       state and measurement
@@ -223,3 +249,47 @@ def negativity(matrix):
   negativity = tf.while_loop(cond, body, [i, negativity])[1]
 
   return tf.math.log(negativity / columns)
+
+def pseudostoch_approx(matrix):
+  """
+  Approximates pseudostochasic matrix with stochastic one
+
+  Arguments
+  ---------
+  matrix : rank 2 tensor of tf.float
+
+  Returns tensor of the same shape and dtype as matrix
+  """
+  A = matrix.numpy()
+  for i in range(A.shape[0]):
+    for j in range(A.shape[1]):
+      if A[i, j] < 0:
+        A[i, j] = 0
+
+  #normalize elements to create stochastic matrix
+  s = np.zeros(A.shape[1]) #initializes list of sums in each column
+  for j in range(A.shape[1]): #calculates sum of elements in each column
+    s[j] = A[:,j].sum()
+  for i in range(A.shape[0]):
+    for j in range(A.shape[1]):
+      A[i,j] = (A[i,j] / s[j])
+
+  return tf.constant(A)
+
+def approx_vector(vector):
+  """aproximetes pseudo probability vector with probability one
+
+  Arguments
+  ----------
+  vector : rank 1 tensor of tf.float
+
+  retunrs tensor of the same shape and dtype
+  """
+  A = vector.numpy()
+  for i in range(A.shape[0]):
+    if A[i] < 0:
+      A[i] = 0
+  s = A.sum()
+  for i in range(A.shape[0]):
+    A[i] = A[i] / s
+  return tf.constant(A)
