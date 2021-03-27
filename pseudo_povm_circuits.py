@@ -203,7 +203,7 @@ class QubitCircuit:
       neg = tf.while_loop(cond, body, [i, neg])[1]
 
       neg += negativity(povm.measurement())
-      neg += tf.linalg.norm(povm.init_state(),ord = 1)
+      neg += tf.math.log(tf.linalg.norm(povm.init_state(),ord = 1))
       return neg
 
 def unitary_to_povm(unitary, povm):
